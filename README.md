@@ -43,13 +43,15 @@ KRNL reads your mail so you don't have to.
 
 ## Screenshots
 
-*Drop `inbox.png`, `ask.png`, `deadlines.png` into `docs/assets/`, then uncomment the gallery below.*
-
-<!-- Screenshot gallery — uncomment once the images are added to docs/assets/
-| Inbox — Important | Ask KRNL | Deadlines |
-|---|---|---|
-| ![Inbox](docs/assets/inbox.png) | ![Ask](docs/assets/ask.png) | ![Deadlines](docs/assets/deadlines.png) |
--->
+<p align="center">
+  <img src="docs/assets/inbox.jpg" width="48%" alt="Sorted inbox — Important tab" />
+  <img src="docs/assets/ask.jpg" width="48%" alt="Ask KRNL — plain-English answers from your mail" />
+</p>
+<p align="center">
+  <img src="docs/assets/deadlines.jpg" width="48%" alt="Deadlines — list & calendar" />
+  <img src="docs/assets/detail.jpg" width="48%" alt="Email detail with an auto-generated summary" />
+</p>
+<p align="center"><em>Sorted inbox · Ask your inbox in plain English · Auto-extracted deadlines · Summarized mail</em></p>
 
 
 ## Tech stack
