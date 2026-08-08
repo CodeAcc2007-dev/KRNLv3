@@ -9,7 +9,14 @@ from app.core.config import settings
 
 logger = logging.getLogger("uvicorn.error")
 
-DEFAULT_PREFS = {"master": True, "important": True, "reminders": True, "digest": True}
+DEFAULT_PREFS = {
+    "master": True,
+    "important": True,
+    "all_mail": True,
+    "important_only": False,
+    "reminders": True,
+    "digest": True,
+}
 
 
 @lru_cache(maxsize=1)

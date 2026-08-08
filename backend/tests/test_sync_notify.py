@@ -1,4 +1,4 @@
-"""maybe_notify sync-time gate: important OR interest-match."""
+"""maybe_notify sync-time gate: notifies all mail by default, or filters when important_only=True."""
 import app.tasks.sync_task as st
 
 
@@ -23,8 +23,12 @@ def _make_client(recorder):
 _CLIENT = _make_client([])
 
 
-def _patch(monkeypatch, priority, raise_on_send=False):
+def _patch(monkeypatch, priority, prefs=None, raise_on_send=False):
     monkeypatch.setattr(st, "calculate_priority", lambda ev, slugs: priority)
+    default_prefs = {"master": True, "important": True, "all_mail": True, "important_only": False}
+    if prefs:
+        default_prefs.update(prefs)
+    monkeypatch.setattr(st, "_prefs_for", lambda client, user_id: default_prefs)
     calls = []
 
     def _send(c, u, p, k):
@@ -37,48 +41,39 @@ def _patch(monkeypatch, priority, raise_on_send=False):
     return calls
 
 
-def test_interest_match_below_threshold_notifies(monkeypatch):
+def test_default_all_mail_notifies_even_below_threshold(monkeypatch):
     calls = _patch(monkeypatch, priority=40.0)  # below IMPORTANT_THRESHOLD (60)
-    ev = {"id": "e1", "display_name": "Cultural fest", "raw_summary": "s",
-          "interest_tags": ["cultural"], "notified_at": None}
-    assert st.maybe_notify(_CLIENT, "u1", ev, ["cultural", "music"]) is True
+    ev = {"id": "e1", "display_name": "General email", "raw_summary": "s",
+          "interest_tags": [], "notified_at": None}
+    assert st.maybe_notify(_CLIENT, "u1", ev, []) is True
     assert len(calls) == 1
 
 
-def test_no_match_below_threshold_stays_silent(monkeypatch):
-    calls = _patch(monkeypatch, priority=40.0)
+def test_important_only_mode_no_match_below_threshold_stays_silent(monkeypatch):
+    calls = _patch(monkeypatch, priority=40.0, prefs={"important_only": True})
     ev = {"id": "e2", "display_name": "Mess menu", "raw_summary": "s",
           "interest_tags": ["food-committee"], "notified_at": None}
     assert st.maybe_notify(_CLIENT, "u1", ev, ["cultural", "music"]) is False
     assert calls == []
 
 
-def test_empty_interests_below_threshold_stays_silent(monkeypatch):
-    calls = _patch(monkeypatch, priority=40.0)
-    ev = {"id": "e3", "display_name": "x", "raw_summary": "s",
+def test_important_only_mode_interest_match_notifies(monkeypatch):
+    calls = _patch(monkeypatch, priority=40.0, prefs={"important_only": True})
+    ev = {"id": "e3", "display_name": "Cultural fest", "raw_summary": "s",
           "interest_tags": ["cultural"], "notified_at": None}
-    assert st.maybe_notify(_CLIENT, "u1", ev, []) is False
-    assert calls == []
+    assert st.maybe_notify(_CLIENT, "u1", ev, ["cultural", "music"]) is True
+    assert len(calls) == 1
 
 
-def test_important_above_threshold_notifies_without_match(monkeypatch):
-    calls = _patch(monkeypatch, priority=75.0)
+def test_important_only_mode_above_threshold_notifies_without_match(monkeypatch):
+    calls = _patch(monkeypatch, priority=75.0, prefs={"important_only": True})
     ev = {"id": "e4", "display_name": "Placement", "raw_summary": "s",
           "interest_tags": [], "notified_at": None}
     assert st.maybe_notify(_CLIENT, "u1", ev, ["cultural"]) is True
     assert len(calls) == 1
 
 
-def test_match_is_case_insensitive(monkeypatch):
-    calls = _patch(monkeypatch, priority=10.0)
-    ev = {"id": "e5", "display_name": "y", "raw_summary": "s",
-          "interest_tags": ["Cultural"], "notified_at": None}
-    assert st.maybe_notify(_CLIENT, "u1", ev, ["cultural"]) is True
-    assert len(calls) == 1
-
-
 def test_already_notified_event_skips_and_does_not_send(monkeypatch):
-    # Even a would-otherwise-notify priority must not fire a second push.
     calls = _patch(monkeypatch, priority=75.0)
     updates = []
     client = _make_client(updates)
@@ -98,3 +93,4 @@ def test_send_failure_is_swallowed_and_does_not_stamp(monkeypatch):
     assert st.maybe_notify(client, "u1", ev, ["cultural"]) is False
     assert calls == []
     assert updates == []
+

@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from app.core.celery_app import celery_app
-from app.services.push import send_to_user
+from app.services.push import send_to_user, _prefs_for
 from app.api.v1.endpoints.events import calculate_priority, IMPORTANT_THRESHOLD, parse_tags
 from imap_tools import MailBox
 from app.core.imap_ssl import imap_ssl_context
@@ -28,18 +28,27 @@ logger = logging.getLogger("uvicorn.error")
 
 
 def maybe_notify(client, user_id, event_row, interest_slugs) -> bool:
-    """Push once for a newly-ingested event the user cares about. Returns whether it pushed.
+    """Push once for a newly-ingested event. Returns whether it pushed.
 
-    Fires when the event is important to anyone (priority >= threshold) OR matches
-    at least one of this user's chosen interests.
+    By default, fires for ALL newly-ingested mail when push is enabled.
+    If the user has set important_only=True in their preferences, it only fires
+    when priority >= threshold OR the event matches their chosen interests.
     """
     if event_row.get("notified_at"):
         return False
-    priority = calculate_priority(event_row, interest_slugs)
-    event_slugs = {s.lower() for s in parse_tags(event_row.get("interest_tags"))}
-    interest_match = bool(event_slugs & {s.lower() for s in interest_slugs})
-    if priority < IMPORTANT_THRESHOLD and not interest_match:
+
+    prefs = _prefs_for(client, user_id)
+    if not prefs.get("master"):
         return False
+
+    # Filter by importance/interests only if user specifically requested important_only mode
+    if prefs.get("important_only"):
+        priority = calculate_priority(event_row, interest_slugs)
+        event_slugs = {s.lower() for s in parse_tags(event_row.get("interest_tags"))}
+        interest_match = bool(event_slugs & {s.lower() for s in interest_slugs})
+        if priority < IMPORTANT_THRESHOLD and not interest_match:
+            return False
+
     payload = {
         "title": event_row.get("display_name") or "New mail for you",
         "body": (event_row.get("raw_summary") or "")[:140],

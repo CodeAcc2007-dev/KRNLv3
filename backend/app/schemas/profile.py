@@ -22,5 +22,12 @@ class ProfileResponse(BaseModel):
     )
     interest_slugs: List[str] = Field(default_factory=list)
     notification_prefs: dict = Field(
-        default_factory=lambda: {"master": True, "important": True, "reminders": True, "digest": True}
+        default_factory=lambda: {
+            "master": True,
+            "important": True,
+            "all_mail": True,
+            "important_only": False,
+            "reminders": True,
+            "digest": True,
+        }
     )

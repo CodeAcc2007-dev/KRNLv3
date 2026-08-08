@@ -8,4 +8,11 @@ def test_update_accepts_notification_prefs():
 
 def test_response_defaults_prefs():
     r = ProfileResponse(user_name="X", interests="", roll_number="", primary_department="")
-    assert r.notification_prefs == {"master": True, "important": True, "reminders": True, "digest": True}
+    assert r.notification_prefs == {
+        "master": True,
+        "important": True,
+        "all_mail": True,
+        "important_only": False,
+        "reminders": True,
+        "digest": True,
+    }
