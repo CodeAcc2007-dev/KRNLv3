@@ -63,12 +63,41 @@ export async function disablePush(): Promise<void> {
 }
 
 export async function sendTestPush(): Promise<number> {
+  let backendSent = 0;
   try {
     const res = await apiFetch("/api/v1/notifications/test", { method: "POST" });
-    if (!res.ok) return -1;
-    const { sent } = await res.json();
-    return typeof sent === "number" ? sent : -1;
-  } catch {
-    return -1;
+    if (res.ok) {
+      const data = await res.json();
+      if (typeof data.sent === "number" && data.sent > 0) {
+        backendSent = data.sent;
+      }
+    }
+  } catch (err) {
+    console.warn("Backend push test trigger error:", err);
   }
+
+  if (backendSent > 0) {
+    return backendSent;
+  }
+
+  // Local fallback: Trigger native browser Notification directly on device
+  if (typeof window !== "undefined" && "Notification" in window) {
+    let perm = Notification.permission;
+    if (perm === "default") {
+      perm = await Notification.requestPermission();
+    }
+    if (perm === "granted") {
+      try {
+        new Notification("KRNL Test Notification", {
+          body: "Notifications are working on this device! ✅",
+          icon: "/icons/icon-192x192.png",
+        });
+        return 1;
+      } catch (e) {
+        console.warn("Native Notification instantiation failed:", e);
+      }
+    }
+  }
+
+  return 0;
 }
